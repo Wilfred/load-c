@@ -83,8 +83,8 @@ name from the last part of the URL."
                 (setq handle (mm-dissect-buffer t))
                 (mm-save-part-to-file handle dest)
                 (kill-buffer (current-buffer))
-                (mm-destroy-parts handle)))
-             (funcall callback)))))
+                (mm-destroy-parts handle))
+              (funcall callback))))))
     ;; If DEST is a directory, we write the file into that directory.
     (when (f-directory? dest)
       (setq dest (f-join dest (f-filename url))))
