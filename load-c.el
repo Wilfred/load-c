@@ -56,8 +56,10 @@ with `find-function'."
     (load-c--download-file
      url load-c-src-dir
      (lambda ()
+       (message "downloaded.")
        (with-current-buffer initial-buffer
-         (spinner-stop))))))
+         (spinner-stop))
+       (message "done.")))))
 
 (defun load-c--download-file (url dest callback)
   "Download URL, saving it DEST. Once completed, call CALLBACK.
@@ -66,15 +68,23 @@ Similar to `url-copy-file', but asynchronous.
 If DEST is a file, we write directly to that location. If DEST is
 a directory, we write the file into that directory, taking the
 name from the last part of the URL."
-  (let* ((url-callback (lambda (status &rest args)
-                         (when (and status (eq (caar status) :error))
-                           (user-error (format "Download error: %s" status)))
-                         (let (handle)
-                           (setq handle (mm-dissect-buffer t))
-                           (mm-save-part-to-file handle dest)
-                           (kill-buffer (current-buffer))
-                           (mm-destroy-parts handle))
-                         (funcall callback))))
+  (let* ((url-callback
+          (lambda (status &rest args)
+            (cond
+             ;; Report any errors.
+             ((and status (eq (car status) :error))
+              (user-error (format "Download error: %s" status)))
+             ;; Follow redirects.
+             ((and status (eq (car status) :redirect))
+              (load-c--download-file (cadr status) dest callback))
+             ;; Succesful download, extract data from the buffer.
+             (t
+              (let (handle)
+                (setq handle (mm-dissect-buffer t))
+                (mm-save-part-to-file handle dest)
+                (kill-buffer (current-buffer))
+                (mm-destroy-parts handle)))
+             (funcall callback)))))
     ;; If DEST is a directory, we write the file into that directory.
     (when (f-directory? dest)
       (setq dest (f-join dest (f-filename url))))
